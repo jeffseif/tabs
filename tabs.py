@@ -97,7 +97,14 @@ def unzip_to_tuples(it) -> collections.abc.Iterable[tuple]:
 
 def note_frets_cost(note_frets: list[tuple[Note, int]]) -> tuple[int, ...]:
     notes, frets = unzip_to_tuples(note_frets)
-    return (-len(set(notes)), statistics.mean(frets), statistics.variance(frets))
+    return (
+        # Maximize the number of notes covered
+        -len(set(notes)),
+        # Minimize the average fret number
+        statistics.mean(frets),
+        # Minimize the spread of frets
+        statistics.variance(fret or statistics.mean(frets) for fret in frets),
+    )
 
 
 UKULELE_STRINGS = (Note.G, Note.C, Note.E, Note.A)

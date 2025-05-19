@@ -4,6 +4,8 @@ CLI tool for ukulele tabs
 
 ## Example
 
+### Show the frets for a chord
+
 ```shell
 > ./cli --chord=C
 chord=C
@@ -23,6 +25,20 @@ chord=A♯|B♭7
 2         | - | ●               (D)
 1         | ● | -               (G♯|A♭)
 ```
+
+### Show the chord for frets
+
+```shell
+> ./cli --frets=0211
+chord=Gmin7
+
+1         | ● | -               (A♯|B♭)
+1         | ● | -               (F)
+2         | - | ●               (D)
+0       ○ | - | -               (G)
+```
+
+### Show the chord and frets for notes
 
 ```shell
 > ./cli --notes='D G A'

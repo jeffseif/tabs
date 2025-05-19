@@ -74,7 +74,7 @@ class Quality(IntervalsShortName, enum.Enum):
 
 
 @dataclasses.dataclass
-class Tab:
+class Tabs:
     frets: tuple[int, ...]
     strings: tuple[Note, ...]
 
@@ -90,6 +90,10 @@ class Tab:
 
         return "\n".join(reversed(lines))
 
+    @property
+    def notes(self) -> set[Note]:
+        return {string + fret for fret, string in zip(self.frets, self.strings)}
+
 
 MAX_OFFSETS = 7
 
@@ -101,6 +105,9 @@ def unzip_to_tuples(it) -> collections.abc.Iterable[tuple]:
 def note_frets_cost(fret_set: tuple[Note, int]) -> tuple[int, ...]:
     notes, frets = unzip_to_tuples(fret_set)
     return (-len(set(notes)), statistics.mean(frets), statistics.variance(frets))
+
+
+UKULELE_STRINGS = (Note.G, Note.C, Note.E, Note.A)
 
 
 @dataclasses.dataclass
@@ -162,7 +169,7 @@ class Chord:
     def from_note_str(cls, note_str: str) -> Chord:
         return cls.from_notes(notes=map(Note.__getitem__, note_str.split()))
 
-    def get_tabs_for_strings(self, strings: tuple[Note]) -> Tab:
+    def get_tabs_for_strings(self, strings: tuple[Note]) -> Tabs:
         def iter_fret_for_string(
             string: Note,
         ) -> collections.abc.Iterator[tuple[Note, int]]:
@@ -175,26 +182,31 @@ class Chord:
             key=note_frets_cost,  # type: ignore
         )
         _, frets = unzip_to_tuples(note_frets)
-        return Tab(frets=frets, strings=strings)
+        return Tabs(frets=frets, strings=strings)
 
     @property
     def ukulele_tabs(self):
-        return self.get_tabs_for_strings(strings=(Note.G, Note.C, Note.E, Note.A))
+        return self.get_tabs_for_strings(strings=UKULELE_STRINGS)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--chord")
+    parser.add_argument("--frets")
     parser.add_argument("--notes")
     args = parser.parse_args()
 
     if args.chord is not None:
         chord = Chord.from_name(name=args.chord)
+        tabs = chord.ukulele_tabs
+    elif args.frets is not None:
+        tabs = Tabs(frets=tuple(map(int, args.frets)), strings=UKULELE_STRINGS)
+        chord = Chord.from_notes(notes=tabs.notes)
     elif args.notes is not None:
         chord = Chord.from_note_str(note_str=args.notes)
+        tabs = chord.ukulele_tabs
     else:
-        raise ValueError("Either --chore or --notes must be provided")
-    tabs = chord.ukulele_tabs
+        raise ValueError("Either --chord or --frets or --notes must be provided")
     print(f"{chord=!r}")
     print()
     print(tabs)

@@ -55,6 +55,7 @@ class IntervalsShortName:
 
 
 class Quality(IntervalsShortName, enum.Enum):
+    SUSPENDED_SECOND = ((2, 5, 5), "sus2")
     DIMINISHED = ((3, 3, 6), "dim")
     MINOR_SEVENTH = ((3, 4, 3, 2), "min7")
     MINOR = ((3, 4, 5), "min")
@@ -63,14 +64,6 @@ class Quality(IntervalsShortName, enum.Enum):
     MAJOR_SEVENTH = ((4, 3, 4, 1), "maj7")
     MAJOR = ((4, 3, 5), "")
     SUSPENDED_FOURTH = ((5, 2, 5), "sus4")
-
-    @classmethod
-    def from_short_name(cls, short_name: str) -> Quality:
-        for quality in cls:
-            if quality.value.short_name == short_name:
-                return quality
-        else:
-            raise ValueError(f"Could not find quality for {short_name=:s}")
 
 
 @dataclasses.dataclass
@@ -95,15 +88,15 @@ class Tabs:
         return {string + fret for fret, string in zip(self.frets, self.strings)}
 
 
-MAX_OFFSETS = 7
+HIGHEST_FRET = 9
 
 
 def unzip_to_tuples(it) -> collections.abc.Iterable[tuple]:
     return map(tuple, more_itertools.unzip(it))
 
 
-def note_frets_cost(fret_set: tuple[Note, int]) -> tuple[int, ...]:
-    notes, frets = unzip_to_tuples(fret_set)
+def note_frets_cost(note_frets: list[tuple[Note, int]]) -> tuple[int, ...]:
+    notes, frets = unzip_to_tuples(note_frets)
     return (-len(set(notes)), statistics.mean(frets), statistics.variance(frets))
 
 
@@ -169,31 +162,31 @@ class Chord:
     def from_note_str(cls, note_str: str) -> Chord:
         return cls.from_notes(notes=map(Note.__getitem__, note_str.split()))
 
-    def get_tabs_for_strings(self, strings: tuple[Note]) -> Tabs:
-        def iter_fret_for_string(
-            string: Note,
-        ) -> collections.abc.Iterator[tuple[Note, int]]:
-            for offset in range(MAX_OFFSETS):
-                if (note := string + offset) in self.notes:
-                    yield (note, offset)
+    @staticmethod
+    def get_tabs_for_strings(notes: set[Note], strings: tuple[Note, ...]) -> Tabs:
+        def iter_note_fret(string: Note) -> collections.abc.Iterator[tuple[Note, int]]:
+            for fret in range(HIGHEST_FRET):
+                if (note := string + fret) in notes:
+                    yield (note, fret)
 
         note_frets: list[tuple[Note, int]] = min(
-            itertools.product(*map(iter_fret_for_string, strings)),  # type: ignore
-            key=note_frets_cost,  # type: ignore
+            map(list, itertools.product(*map(iter_note_fret, strings))),
+            key=note_frets_cost,
         )
         _, frets = unzip_to_tuples(note_frets)
         return Tabs(frets=frets, strings=strings)
 
     @property
     def ukulele_tabs(self):
-        return self.get_tabs_for_strings(strings=UKULELE_STRINGS)
+        return self.get_tabs_for_strings(notes=self.notes, strings=UKULELE_STRINGS)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--chord")
-    parser.add_argument("--frets")
-    parser.add_argument("--notes")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--chord")
+    group.add_argument("--frets")
+    group.add_argument("--notes")
     args = parser.parse_args()
 
     if args.chord is not None:
@@ -207,6 +200,7 @@ def main() -> int:
         tabs = chord.ukulele_tabs
     else:
         raise ValueError("Either --chord or --frets or --notes must be provided")
+
     print(f"{chord=!r}")
     print()
     print(tabs)

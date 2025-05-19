@@ -1,0 +1,5 @@
+#! /bin/bash
+
+MODULE=$(basename $(pwd)) ;
+
+make --quiet && ./.venv/bin/python -m "${MODULE}" "$@" ;

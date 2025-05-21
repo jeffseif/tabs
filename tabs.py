@@ -55,7 +55,6 @@ class IntervalsShortName:
 
 
 class Quality(IntervalsShortName, enum.Enum):
-    SUSPENDED_SECOND = ((2, 5, 5), "sus2")
     DIMINISHED = ((3, 3, 6), "dim")
     MINOR_SEVENTH = ((3, 4, 3, 2), "min7")
     MINOR = ((3, 4, 5), "min")
@@ -64,6 +63,7 @@ class Quality(IntervalsShortName, enum.Enum):
     MAJOR_SEVENTH = ((4, 3, 4, 1), "maj7")
     MAJOR = ((4, 3, 5), "")
     SUSPENDED_FOURTH = ((5, 2, 5), "sus4")
+    SUSPENDED_SECOND = ((2, 5, 5), "sus2")  # This is a rotation of sus4
 
 
 @dataclasses.dataclass
@@ -110,6 +110,12 @@ def note_frets_cost(note_frets: list[tuple[Note, int]]) -> tuple[int, ...]:
 UKULELE_STRINGS = (Note.G, Note.C, Note.E, Note.A)
 
 
+def iter_rotations(it: collections.abc.Sequence) -> collections.abc.Iterator[tuple]:
+    n = len(it)
+    for idx in range(n):
+        yield tuple(itertools.islice(itertools.cycle(it), idx, idx + n + 1))
+
+
 @dataclasses.dataclass
 class Chord:
     root: Note
@@ -144,23 +150,15 @@ class Chord:
     @classmethod
     def from_notes(cls, notes: collections.abc.Iterable[Note]) -> Chord:
         ordered = sorted(set(notes))
-        number_of_notes = len(ordered)
-        rotations = (
-            itertools.islice(
-                itertools.cycle(ordered), index, index + number_of_notes + 1
-            )
-            for index in range(number_of_notes)
-        )
-
-        for rotation in rotations:
-            (root,), rotation = more_itertools.spy(rotation, n=1)
-            intervals = tuple(
-                itertools.starmap(
-                    operator.sub, map(reversed, itertools.pairwise(rotation))
+        for quality in Quality:
+            for rotation in iter_rotations(it=ordered):
+                (root,), rotation = more_itertools.spy(rotation, n=1)
+                intervals = tuple(
+                    itertools.starmap(
+                        operator.sub, map(reversed, itertools.pairwise(rotation))
+                    )
                 )
-            )
-            for quality in Quality:
-                if quality.value.intervals == tuple(intervals):
+                if quality.value.intervals == intervals:
                     return cls(root=root, quality=quality)
         else:
             raise ValueError(f"Could not find the chord for {ordered:}")

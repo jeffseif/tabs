@@ -28,6 +28,8 @@ class Note(enum.Enum):
         value = (self.value + other) % 12
         return Note(value=value)
 
+    __radd__ = __add__
+
     def __sub__(self, other: Note) -> int:
         return (self.value - other.value) % 12
 
@@ -66,29 +68,42 @@ class Quality(IntervalsShortName, enum.Enum):
     SUSPENDED_SECOND = ((2, 5, 5), "sus2")  # This is a rotation of sus4
 
 
+HIGHEST_FRET = 6
+
+
 @dataclasses.dataclass
-class Tabs:
+class Tab:
     frets: tuple[int, ...]
     strings: tuple[Note, ...]
 
     def __repr__(self) -> str:
-        lines = []
-        length = max(self.frets)
-        for fret, string in zip(self.frets, self.strings):
-            chars = [" " if fret else "○"]
-            chars.extend("-" * (fret - 1))
-            chars.extend(("●",) if fret else ())
-            chars.extend("-" * (length - fret))
-            lines.append(f"{fret:d}\t" + " | ".join(chars) + f"\t\t({string + fret!r})")
+        def pad(
+            delimiter: str,
+            s: collections.abc.Iterable[str],
+        ) -> str:
+            return delimiter + delimiter.join(s) + delimiter
 
-        return "\n".join(reversed(lines))
+        def iter_lines() -> collections.abc.Iterator[str]:
+            yield ""
+            yield pad(delimiter=" ", s=map(str, self.frets))
+            yield ""
+            yield pad(
+                delimiter=" ",
+                s=("○" if fret == 0 else " " for fret in self.frets),
+            )
+            yield pad(delimiter="=", s="=" * len(self.strings))
+            for idx in range(1, HIGHEST_FRET):
+                yield pad(
+                    delimiter=" ",
+                    s=("●" if fret == idx else "│" for fret in self.frets),
+                )
+                yield pad(delimiter="—", s="—" * len(self.strings))
+
+        return "\n".join(iter_lines())
 
     @property
     def notes(self) -> set[Note]:
         return {string + fret for fret, string in zip(self.frets, self.strings)}
-
-
-HIGHEST_FRET = 9
 
 
 def unzip_to_tuples(it) -> collections.abc.Iterable[tuple]:
@@ -168,7 +183,7 @@ class Chord:
         return cls.from_notes(notes=map(Note.__getitem__, note_str.split()))
 
     @staticmethod
-    def get_tabs_for_strings(notes: set[Note], strings: tuple[Note, ...]) -> Tabs:
+    def get_tabs_for_strings(notes: set[Note], strings: tuple[Note, ...]) -> Tab:
         def iter_note_fret(string: Note) -> collections.abc.Iterator[tuple[Note, int]]:
             for fret in range(HIGHEST_FRET):
                 if (note := string + fret) in notes:
@@ -179,7 +194,7 @@ class Chord:
             key=note_frets_cost,
         )
         _, frets = unzip_to_tuples(note_frets)
-        return Tabs(frets=frets, strings=strings)
+        return Tab(frets=frets, strings=strings)
 
     @property
     def ukulele_tabs(self):
@@ -198,7 +213,7 @@ def main() -> int:
         chord = Chord.from_name(name=args.chord)
         tabs = chord.ukulele_tabs
     elif args.frets is not None:
-        tabs = Tabs(frets=tuple(map(int, args.frets)), strings=UKULELE_STRINGS)
+        tabs = Tab(frets=tuple(map(int, args.frets)), strings=UKULELE_STRINGS)
         chord = Chord.from_notes(notes=tabs.notes)
     elif args.notes is not None:
         chord = Chord.from_note_str(note_str=args.notes)
@@ -207,7 +222,6 @@ def main() -> int:
         raise ValueError("Either --chord or --frets or --notes must be provided")
 
     print(f"{chord=!r}")
-    print()
     print(tabs)
     return 0
 

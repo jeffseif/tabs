@@ -12,9 +12,13 @@ $(VENV_DIR): requirements.txt
 
 .PHONY: lint
 lint: $(VENV_DIR)
-	@$</bin/python -m pip install --quiet pre-commit
+	@$</bin/python -m pip install --quiet pre-commit pytest
 	@$</bin/pre-commit install
 	@$</bin/pre-commit run --all-files
+
+.PHONY: test
+test: lint
+	@$(VENV_DIR)/bin/pytest test_tabs.py
 
 .PHONY: clean
 clean:

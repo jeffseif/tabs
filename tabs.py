@@ -178,10 +178,6 @@ class Chord:
         else:
             raise ValueError(f"Could not find the chord for notes={ordered:}")
 
-    @classmethod
-    def from_notes_str(cls, notes_str: str) -> Chord:
-        return cls.from_notes(notes=map(Note.__getitem__, notes_str.split()))
-
     @staticmethod
     def get_tab_for_notes_strings(notes: set[Note], strings: tuple[Note, ...]) -> Tab:
         def iter_note_fret(string: Note) -> collections.abc.Iterator[tuple[Note, int]]:
@@ -216,7 +212,8 @@ def main() -> int:
         tabs = Tab(frets=tuple(map(int, args.frets)), strings=UKULELE_STRINGS)
         chord = Chord.from_notes(notes=tabs.notes)
     elif args.notes is not None:
-        chord = Chord.from_notes_str(notes_str=args.notes)
+        notes = map(Note.__getitem__, args.notes.split())
+        chord = Chord.from_notes(notes=notes)
         tabs = chord.ukulele_tabs
     else:
         raise ValueError("Either --chord or --frets or --notes must be provided")

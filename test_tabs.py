@@ -1,4 +1,3 @@
-import operator
 import re
 
 from tabs import UKULELE_STRINGS, Chord, Note, Tab, iter_rotations, unzip_to_tuples
@@ -80,16 +79,6 @@ def test_chord_from_notes_raises() -> None:
         ValueError, match=re.escape(f"Could not find the chord for {notes=:}")
     ):
         Chord.from_notes(notes=notes)
-
-
-@pytest.mark.parametrize("notes", CHORD_NAME_TO_NOTES.values())
-def test_chord_from_notes_str(notes: set[Note]) -> None:
-    assert (
-        Chord.from_notes_str(
-            notes_str=" ".join(map(operator.attrgetter("name"), notes))
-        ).notes
-        == notes
-    )
 
 
 @pytest.mark.parametrize("notes", CHORD_NAME_TO_NOTES.values())

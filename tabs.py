@@ -60,15 +60,15 @@ class Intervals:
     def __post_init__(self) -> None:
         assert sum(self.values) == 12
 
-    def get_root(self, notes: collections.abc.Iterable[Note]) -> Note:
+    def iter_root(
+        self, notes: collections.abc.Iterable[Note]
+    ) -> collections.abc.Iterator[Note]:
         for inversion in iter_rotation(it=notes):
             intervals = tuple(
                 right - left for left, right in itertools.pairwise(inversion)
             )
             if intervals == self.values:
-                return inversion[0]
-        else:
-            raise ValueError(f"Could not find root for {notes=:}")
+                yield inversion[0]
 
 
 class Quality(Intervals, enum.Enum):
@@ -186,11 +186,7 @@ class Chord:
     def from_notes(cls, notes: collections.abc.Iterable[Note]) -> Chord:
         notes = tuple(notes)
         for quality in Quality:
-            try:
-                root = quality.get_root(notes=notes)
-            except ValueError:
-                continue
-            else:
+            for root in quality.iter_root(notes=notes):
                 return cls(root=root, quality=quality)
         else:
             raise ValueError(f"Could not find the chord for {notes=:}")

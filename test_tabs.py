@@ -37,27 +37,24 @@ def test_iter_rotation() -> None:
 @pytest.mark.parametrize(
     ("intervals", "notes", "expected"),
     (
-        (Quality.MAJOR, {Note.C, Note.E, Note.G}, Note.C),
-        (Quality.MAJOR, {Note.CD, Note.E, Note.A}, Note.A),
-        (Quality.SUSPENDED_FOURTH, {Note.C, Note.F, Note.G}, Note.C),
-        (Quality.SUSPENDED_SECOND, {Note.C, Note.F, Note.G}, Note.F),
+        (Quality.MAJOR, {Note.C, Note.E, Note.G}, [Note.C]),
+        (Quality.MAJOR, {Note.CD, Note.E, Note.A}, [Note.A]),
+        (Quality.SUSPENDED_FOURTH, {Note.C, Note.F, Note.G}, [Note.C]),
+        (Quality.SUSPENDED_SECOND, {Note.C, Note.F, Note.G}, [Note.F]),
+        (
+            Quality.DIMINISHED_SEVENTH,
+            {Note.C, Note.DE, Note.FG, Note.A},
+            [Note.C, Note.DE, Note.FG, Note.A],
+        ),
+        (Quality.MAJOR, {Note.C, Note.CD, Note.D}, []),
     ),
 )
-def test_interval_get_root(
+def test_interval_iter_root(
     intervals: Intervals,
     notes: collections.abc.Iterable[Note],
-    expected: Note,
+    expected: list[Note],
 ) -> None:
-    assert intervals.get_root(notes=notes) == expected
-
-
-def test_interval_get_root_raises() -> None:
-    intervalss = Quality.MAJOR
-    notes = (Note.C, Note.CD, Note.D)
-    with pytest.raises(
-        ValueError, match=re.escape(f"Could not find root for {notes=:}")
-    ):
-        intervalss.get_root(notes=notes)
+    assert list(intervals.iter_root(notes=notes)) == expected
 
 
 def test_unzip_to_tuples() -> None:

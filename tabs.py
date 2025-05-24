@@ -73,12 +73,13 @@ class Intervals:
 
 class Quality(Intervals, enum.Enum):
     DIMINISHED = ((3, 3, 6), "dim")
+    DIMINISHED_SEVENTH = ((3, 3, 3, 3), "dim7")
     MINOR_SEVENTH = ((3, 4, 3, 2), "min7")
     MINOR = ((3, 4, 5), "min")
-    AUGMENTED = ((4, 2, 6), "aug")
-    SEVENTH = ((4, 3, 3, 2), "7")
+    DOMINANT_SEVENTH = ((4, 3, 3, 2), "dom7")
     MAJOR_SEVENTH = ((4, 3, 4, 1), "maj7")
     MAJOR = ((4, 3, 5), "")
+    AUGMENTED = ((4, 4, 4), "aug")
     SUSPENDED_FOURTH = ((5, 2, 5), "sus4")
     SUSPENDED_SECOND = ((2, 5, 5), "sus2")  # This is a rotation of sus4
 
@@ -166,10 +167,12 @@ class Chord:
     @classmethod
     def from_name(cls, name: str) -> Chord:
         for quality in Quality:
-            if len(sep := quality.value.suffix):
+            if not len(sep := quality.value.suffix):
+                notes_str = name
+            elif name.endswith(quality.value.suffix):
                 notes_str, _, _ = name.rpartition(sep)
             else:
-                notes_str = name
+                continue
             try:
                 root = Note[notes_str]
             except KeyError:

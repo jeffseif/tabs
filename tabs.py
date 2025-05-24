@@ -5,7 +5,6 @@ import collections.abc
 import enum
 import functools
 import itertools
-import operator
 import statistics
 
 import more_itertools
@@ -47,16 +46,32 @@ class Note(enum.Enum):
     B = enum.auto()
 
 
+def iter_rotation(it: collections.abc.Iterable) -> collections.abc.Iterator[tuple]:
+    ordered = sorted(set(it))
+    for idx in range(n := len(ordered)):
+        yield tuple(itertools.islice(itertools.cycle(ordered), idx, idx + n + 1))
+
+
 @dataclasses.dataclass
-class IntervalsShortName:
-    intervals: tuple[int, ...]
-    short_name: str
+class Intervals:
+    values: tuple[int, ...]
+    suffix: str
 
     def __post_init__(self) -> None:
-        assert sum(self.intervals) == 12
+        assert sum(self.values) == 12
+
+    def get_root(self, notes: collections.abc.Iterable[Note]) -> Note:
+        for inversion in iter_rotation(it=notes):
+            intervals = tuple(
+                right - left for left, right in itertools.pairwise(inversion)
+            )
+            if intervals == self.values:
+                return inversion[0]
+        else:
+            raise ValueError(f"Could not find root for {notes=:}")
 
 
-class Quality(IntervalsShortName, enum.Enum):
+class Quality(Intervals, enum.Enum):
     DIMINISHED = ((3, 3, 6), "dim")
     MINOR_SEVENTH = ((3, 4, 3, 2), "min7")
     MINOR = ((3, 4, 5), "min")
@@ -125,31 +140,25 @@ def note_frets_cost(note_frets: list[tuple[Note, int]]) -> tuple[int, ...]:
 UKULELE_STRINGS = (Note.G, Note.C, Note.E, Note.A)
 
 
-def iter_rotations(it: collections.abc.Sequence) -> collections.abc.Iterator[tuple]:
-    n = len(it)
-    for idx in range(n):
-        yield tuple(itertools.islice(itertools.cycle(it), idx, idx + n + 1))
-
-
 @dataclasses.dataclass
 class Chord:
     root: Note
     quality: Quality
 
     def __repr__(self) -> str:
-        return f"{self.root!r}{self.quality.value.short_name:s}"
+        return f"{self.root!r}{self.quality.value.suffix:s}"
 
     @functools.cached_property
     def notes(self) -> set[Note]:
         return {
             (self.root + interval)
-            for interval in itertools.accumulate(self.quality.intervals)
+            for interval in itertools.accumulate(self.quality.values)
         }
 
     @classmethod
     def from_name(cls, name: str) -> Chord:
         for quality in Quality:
-            if len(sep := quality.value.short_name):
+            if len(sep := quality.value.suffix):
                 notes_str, _, _ = name.rpartition(sep)
             else:
                 notes_str = name
@@ -164,19 +173,16 @@ class Chord:
 
     @classmethod
     def from_notes(cls, notes: collections.abc.Iterable[Note]) -> Chord:
-        ordered = sorted(set(notes))
+        notes = tuple(notes)
         for quality in Quality:
-            for rotation in iter_rotations(it=ordered):
-                (root,), rotation = more_itertools.spy(rotation, n=1)
-                intervals = tuple(
-                    itertools.starmap(
-                        operator.sub, map(reversed, itertools.pairwise(rotation))
-                    )
-                )
-                if quality.value.intervals == intervals:
-                    return cls(root=root, quality=quality)
+            try:
+                root = quality.get_root(notes=notes)
+            except ValueError:
+                continue
+            else:
+                return cls(root=root, quality=quality)
         else:
-            raise ValueError(f"Could not find the chord for notes={ordered:}")
+            raise ValueError(f"Could not find the chord for {notes=:}")
 
     @staticmethod
     def get_tab_for_notes_strings(notes: set[Note], strings: tuple[Note, ...]) -> Tab:

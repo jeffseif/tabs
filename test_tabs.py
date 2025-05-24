@@ -1,8 +1,62 @@
+import collections.abc
 import re
 
-from tabs import UKULELE_STRINGS, Chord, Note, Tab, iter_rotations, unzip_to_tuples
+from tabs import (
+    UKULELE_STRINGS,
+    Chord,
+    Intervals,
+    Note,
+    Quality,
+    Tab,
+    iter_rotation,
+    unzip_to_tuples,
+)
 
 import pytest
+
+
+def test_notes() -> None:
+    assert len(Note) == 12
+    assert min(Note) == Note.C
+    assert max(Note) == Note.B
+    assert Note.C - Note.B == 1
+    assert Note.B + 1 == Note.C
+
+
+def test_iter_rotation() -> None:
+    assert list(iter_rotation(it=range(5))) == [
+        (0, 1, 2, 3, 4, 0),
+        (1, 2, 3, 4, 0, 1),
+        (2, 3, 4, 0, 1, 2),
+        (3, 4, 0, 1, 2, 3),
+        (4, 0, 1, 2, 3, 4),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("intervals", "notes", "expected"),
+    (
+        (Quality.MAJOR, {Note.C, Note.E, Note.G}, Note.C),
+        (Quality.MAJOR, {Note.CD, Note.E, Note.A}, Note.A),
+        (Quality.SUSPENDED_FOURTH, {Note.C, Note.F, Note.G}, Note.C),
+        (Quality.SUSPENDED_SECOND, {Note.C, Note.F, Note.G}, Note.F),
+    ),
+)
+def test_interval_get_root(
+    intervals: Intervals,
+    notes: collections.abc.Iterable[Note],
+    expected: Note,
+) -> None:
+    assert intervals.get_root(notes=notes) == expected
+
+
+def test_interval_get_root_raises() -> None:
+    intervalss = Quality.MAJOR
+    notes = (Note.C, Note.CD, Note.D)
+    with pytest.raises(
+        ValueError, match=re.escape(f"Could not find root for {notes=:}")
+    ):
+        intervalss.get_root(notes=notes)
 
 
 @pytest.mark.parametrize(
@@ -23,16 +77,6 @@ def test_unzip_to_tuples() -> None:
     left, right = unzip_to_tuples(zip(range(5), range(5, 10)))
     assert left == tuple(range(5))
     assert right == tuple(range(5, 10))
-
-
-def test_iter_rotations() -> None:
-    assert tuple(iter_rotations(it=range(5))) == (
-        (0, 1, 2, 3, 4, 0),
-        (1, 2, 3, 4, 0, 1),
-        (2, 3, 4, 0, 1, 2),
-        (3, 4, 0, 1, 2, 3),
-        (4, 0, 1, 2, 3, 4),
-    )
 
 
 CHORD_NAME_TO_NOTES = {
@@ -74,7 +118,7 @@ def test_chord_from_notes(notes: set[Note]) -> None:
 
 
 def test_chord_from_notes_raises() -> None:
-    notes = [Note.C, Note.CD, Note.D, Note.DE]
+    notes = (Note.C, Note.CD, Note.D, Note.DE)
     with pytest.raises(
         ValueError, match=re.escape(f"Could not find the chord for {notes=:}")
     ):

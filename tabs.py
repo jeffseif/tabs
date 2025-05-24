@@ -108,29 +108,23 @@ class Tab:
     strings: tuple[Note, ...]
 
     def __repr__(self) -> str:
-        def pad(
-            delimiter: str,
-            s: collections.abc.Iterable[str],
-        ) -> str:
-            return delimiter + delimiter.join(s) + delimiter
-
-        def iter_lines() -> collections.abc.Iterator[str]:
-            yield ""
-            yield pad(delimiter=" ", s=map(str, self.frets))
-            yield ""
-            yield pad(
-                delimiter=" ",
-                s=("○" if fret == 0 else " " for fret in self.frets),
-            )
-            yield pad(delimiter="=", s="=" * len(self.strings))
-            for idx in range(1, HIGHEST_FRET):
-                yield pad(
-                    delimiter=" ",
-                    s=("●" if fret == idx else "│" for fret in self.frets),
+        def iter_line() -> collections.abc.Iterator[str]:
+            for fret, string in more_itertools.always_reversible(
+                zip(self.frets, self.strings)
+            ):
+                yield (
+                    " | ".join(
+                        (
+                            " " if fret else "○",
+                            *("-" * (fret - 1)),
+                            *("●" * (bool(fret))),
+                            *("-" * (HIGHEST_FRET - fret)),
+                        )
+                    )
+                    + f"\t({string + fret!r})"
                 )
-                yield pad(delimiter="—", s="—" * len(self.strings))
 
-        return "\n".join(iter_lines())
+        return "\n".join(iter_line())
 
     @classmethod
     def from_notes_strings(cls, notes: set[Note], strings: tuple[Note, ...]) -> Tab:

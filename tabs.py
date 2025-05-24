@@ -200,19 +200,19 @@ class Chord:
 def main() -> int:
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--chord")
-    group.add_argument("--frets")
-    group.add_argument("--notes")
+    group.add_argument("--chord", type=str)
+    group.add_argument("--frets", type=lambda s: tuple(map(int, s)))
+    group.add_argument("--notes", type=str.split)
     args = parser.parse_args()
 
     if args.chord is not None:
         chord = Chord.from_name(name=args.chord)
         tabs = chord.ukulele_tabs
     elif args.frets is not None:
-        tabs = Tab(frets=tuple(map(int, args.frets)), strings=UKULELE_STRINGS)
+        tabs = Tab(frets=args.frets, strings=UKULELE_STRINGS)
         chord = Chord.from_notes(notes=tabs.notes)
     elif args.notes is not None:
-        notes = map(Note.__getitem__, args.notes.split())
+        notes = map(Note.__getitem__, args.notes)
         chord = Chord.from_notes(notes=notes)
         tabs = chord.ukulele_tabs
     else:

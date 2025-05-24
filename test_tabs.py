@@ -9,6 +9,7 @@ from tabs import (
     Quality,
     Tab,
     iter_rotation,
+    note_frets_cost,
     unzip_to_tuples,
 )
 
@@ -59,24 +60,44 @@ def test_interval_get_root_raises() -> None:
         intervalss.get_root(notes=notes)
 
 
-@pytest.mark.parametrize(
-    ("frets", "expected"),
-    (
-        ((0, 0, 0, 0), {Note.G, Note.C, Note.E, Note.A}),
-        ((0, 0, 0, 1), {Note.G, Note.C, Note.E, Note.AB}),
-        ((0, 0, 1, 0), {Note.G, Note.C, Note.F, Note.A}),
-        ((0, 1, 0, 0), {Note.G, Note.CD, Note.E, Note.A}),
-        ((1, 0, 0, 0), {Note.GA, Note.C, Note.E, Note.A}),
-    ),
-)
-def test_tab_notes(frets: tuple[int, int, int, int], expected: set[Note]) -> None:
-    assert Tab(frets=frets, strings=UKULELE_STRINGS).notes == expected
-
-
 def test_unzip_to_tuples() -> None:
     left, right = unzip_to_tuples(zip(range(5), range(5, 10)))
     assert left == tuple(range(5))
     assert right == tuple(range(5, 10))
+
+
+@pytest.mark.parametrize(
+    ("lesser", "greater"),
+    (
+        pytest.param(
+            [(Note.C, 0), (Note.E, 0)], [(Note.C, 0), (Note.C, 0)], id="More notes"
+        ),
+        pytest.param(
+            [(Note.C, 0), (Note.E, 0)], [(Note.C, 1), (Note.E, 1)], id="More left"
+        ),
+        pytest.param(
+            [(Note.C, 1), (Note.E, 1)], [(Note.C, 0), (Note.E, 2)], id="Less spread"
+        ),
+    ),
+)
+def test_note_frets_cost(
+    lesser: list[tuple[Note, int]], greater: list[tuple[Note, int]]
+) -> None:
+    assert note_frets_cost(note_frets=lesser) < note_frets_cost(note_frets=greater)
+
+
+TABS_TO_NOTES = {
+    (0, 0, 0, 0): {Note.G, Note.C, Note.E, Note.A},
+    (0, 0, 0, 1): {Note.G, Note.C, Note.E, Note.AB},
+    (0, 0, 1, 0): {Note.G, Note.C, Note.F, Note.A},
+    (0, 1, 0, 0): {Note.G, Note.CD, Note.E, Note.A},
+    (1, 0, 0, 0): {Note.GA, Note.C, Note.E, Note.A},
+}
+
+
+@pytest.mark.parametrize(("frets", "expected"), TABS_TO_NOTES.items())
+def test_tab_notes(frets: tuple[int, int, int, int], expected: set[Note]) -> None:
+    assert Tab(frets=frets, strings=UKULELE_STRINGS).notes == expected
 
 
 CHORD_NAME_TO_NOTES = {

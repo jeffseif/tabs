@@ -86,6 +86,22 @@ class Quality(Intervals, enum.Enum):
 HIGHEST_FRET = 6
 
 
+def unzip_to_tuples(it) -> collections.abc.Iterable[tuple]:
+    return map(tuple, more_itertools.unzip(it))
+
+
+def note_frets_cost(note_frets: list[tuple[Note, int]]) -> tuple[int, ...]:
+    notes, frets = unzip_to_tuples(note_frets)
+    return (
+        # The number of missing notes
+        -len(set(notes)),
+        # The average fret number
+        statistics.mean(frets),
+        # The spread of frets
+        statistics.variance(fret or statistics.mean(frets) for fret in frets),
+    )
+
+
 @dataclasses.dataclass
 class Tab:
     frets: tuple[int, ...]
@@ -116,25 +132,23 @@ class Tab:
 
         return "\n".join(iter_lines())
 
+    @classmethod
+    def from_notes_strings(cls, notes: set[Note], strings: tuple[Note, ...]) -> Tab:
+        def iter_note_fret(string: Note) -> collections.abc.Iterator[tuple[Note, int]]:
+            for fret in range(HIGHEST_FRET):
+                if (note := string + fret) in notes:
+                    yield (note, fret)
+
+        note_frets: list[tuple[Note, int]] = min(
+            map(list, itertools.product(*map(iter_note_fret, strings))),
+            key=note_frets_cost,
+        )
+        _, frets = unzip_to_tuples(note_frets)
+        return cls(frets=frets, strings=strings)
+
     @property
     def notes(self) -> set[Note]:
         return {string + fret for fret, string in zip(self.frets, self.strings)}
-
-
-def unzip_to_tuples(it) -> collections.abc.Iterable[tuple]:
-    return map(tuple, more_itertools.unzip(it))
-
-
-def note_frets_cost(note_frets: list[tuple[Note, int]]) -> tuple[int, ...]:
-    notes, frets = unzip_to_tuples(note_frets)
-    return (
-        # Maximize the number of notes covered
-        -len(set(notes)),
-        # Minimize the average fret number
-        statistics.mean(frets),
-        # Minimize the spread of frets
-        statistics.variance(fret or statistics.mean(frets) for fret in frets),
-    )
 
 
 UKULELE_STRINGS = (Note.G, Note.C, Note.E, Note.A)
@@ -184,23 +198,9 @@ class Chord:
         else:
             raise ValueError(f"Could not find the chord for {notes=:}")
 
-    @staticmethod
-    def get_tab_for_notes_strings(notes: set[Note], strings: tuple[Note, ...]) -> Tab:
-        def iter_note_fret(string: Note) -> collections.abc.Iterator[tuple[Note, int]]:
-            for fret in range(HIGHEST_FRET):
-                if (note := string + fret) in notes:
-                    yield (note, fret)
-
-        note_frets: list[tuple[Note, int]] = min(
-            map(list, itertools.product(*map(iter_note_fret, strings))),
-            key=note_frets_cost,
-        )
-        _, frets = unzip_to_tuples(note_frets)
-        return Tab(frets=frets, strings=strings)
-
     @property
     def ukulele_tabs(self):
-        return self.get_tab_for_notes_strings(notes=self.notes, strings=UKULELE_STRINGS)
+        return Tab.from_notes_strings(notes=self.notes, strings=UKULELE_STRINGS)
 
 
 def main() -> int:

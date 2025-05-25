@@ -135,7 +135,7 @@ def test_chord_from_notes(notes: set[Note]) -> None:
 @pytest.mark.parametrize("notes", CHORD_NAME_TO_NOTES.values())
 def test_chord_ukulele_tabs(notes: set[Note]) -> None:
     (chord,) = Chord.iter_from_notes(notes=notes)
-    assert chord.ukulele_tabs.notes == notes
+    assert chord.ukulele_tab.notes == notes
 
 
 @pytest.mark.parametrize(

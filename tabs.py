@@ -81,7 +81,7 @@ class Quality(Intervals, enum.Enum):
     MAJOR = ((4, 3, 5), "")
     AUGMENTED = ((4, 4, 4), "aug")
     SUSPENDED_FOURTH = ((5, 2, 5), "sus4")
-    SUSPENDED_SECOND = ((2, 5, 5), "sus2")  # This is a rotation of sus4
+    SUSPENDED_SECOND = ((2, 5, 5), "sus2")
 
 
 HIGHEST_FRET = 6
@@ -192,33 +192,53 @@ class Chord:
                 yield cls(root=root, quality=quality)
 
     @property
-    def ukulele_tabs(self):
+    def ukulele_tab(self):
         return Tab.from_notes_strings(notes=self.notes, strings=UKULELE_STRINGS)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--chord", type=str)
-    group.add_argument("--frets", type=lambda s: tuple(map(int, s)))
-    group.add_argument("--notes", type=str.split)
+    subparsers = parser.add_subparsers()
+
+    chords_parser = subparsers.add_parser(name="chords")
+    chords_parser.add_argument("chords", nargs="+", type=str)
+
+    frets_parser = subparsers.add_parser(name="frets")
+    frets_parser.add_argument("frets", nargs="+", type=lambda s: tuple(map(int, s)))
+    frets_parser.add_argument("--maximum-count", default=1, type=int)
+
+    notes_parser = subparsers.add_parser(name="notes")
+    notes_parser.add_argument("notes", nargs="+", type=str.split)
+    notes_parser.add_argument("--maximum-count", default=1, type=int)
+
     args = parser.parse_args()
 
-    if args.chord is not None:
-        chord = Chord.from_name(name=args.chord)
-        tabs = chord.ukulele_tabs
-    elif args.frets is not None:
-        tabs = Tab(frets=args.frets, strings=UKULELE_STRINGS)
-        chord = next(Chord.iter_from_notes(notes=tabs.notes))
-    elif args.notes is not None:
-        notes = map(Note.__getitem__, args.notes)
-        chord = next(Chord.iter_from_notes(notes=notes))
-        tabs = chord.ukulele_tabs
+    def report(chord: Chord, tab: Tab) -> None:
+        print(f"{chord=!r}")
+        print(tab)
+        print()
+
+    if hasattr(args, "chords"):
+        for name in args.chords:
+            chord = Chord.from_name(name=name)
+            report(chord=chord, tab=chord.ukulele_tab)
+    elif hasattr(args, "frets"):
+        for frets in args.frets:
+            tab = Tab(frets=frets, strings=UKULELE_STRINGS)
+            for chord in itertools.islice(
+                Chord.iter_from_notes(notes=tab.notes), args.maximum_count
+            ):
+                report(chord=chord, tab=tab)
+    elif hasattr(args, "notes"):
+        for notes in args.notes:
+            for chord in itertools.islice(
+                Chord.iter_from_notes(notes=map(Note.__getitem__, notes)),
+                args.maximum_count,
+            ):
+                report(chord=chord, tab=chord.ukulele_tab)
     else:
         raise ValueError("Either --chord or --frets or --notes must be provided")
 
-    print(f"{chord=!r}")
-    print(tabs)
     return 0
 
 

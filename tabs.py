@@ -214,9 +214,10 @@ def main() -> int:
     args = parser.parse_args()
 
     def report(chord: Chord, tab: Tab) -> None:
-        print(f"{chord=!r}")
-        print(tab)
         print()
+        print(f"  {chord!r}")
+        print()
+        print(tab)
 
     if hasattr(args, "chords"):
         for name in args.chords:

@@ -1,5 +1,4 @@
 import collections.abc
-import re
 
 from tabs import (
     UKULELE_STRINGS,
@@ -106,14 +105,10 @@ CHORD_NAME_TO_NOTES = {
     "A": {Note.A, Note.CD, Note.E},
     "B": {Note.B, Note.DE, Note.FG},
     "Cdim": {Note.C, Note.DE, Note.FG},
-    "Cdim7": {Note.C, Note.DE, Note.FG, Note.A},
     "Cmin7": {Note.C, Note.DE, Note.G, Note.AB},
     "Cmin": {Note.C, Note.DE, Note.G},
-    "Caug": {Note.C, Note.E, Note.GA},
     "Cdom7": {Note.C, Note.E, Note.G, Note.AB},
     "Cmaj7": {Note.C, Note.E, Note.G, Note.B},
-    "Csus4": {Note.C, Note.F, Note.G},
-    "Csus2": {Note.C, Note.D, Note.G},
 }
 
 
@@ -133,17 +128,38 @@ def test_chord_from_name_raises() -> None:
 
 @pytest.mark.parametrize("notes", CHORD_NAME_TO_NOTES.values())
 def test_chord_from_notes(notes: set[Note]) -> None:
-    assert Chord.from_notes(notes=notes).notes == notes
-
-
-def test_chord_from_notes_raises() -> None:
-    notes = (Note.C, Note.CD, Note.D, Note.DE)
-    with pytest.raises(
-        ValueError, match=re.escape(f"Could not find the chord for {notes=:}")
-    ):
-        Chord.from_notes(notes=notes)
+    (chord,) = Chord.iter_from_notes(notes=notes)
+    assert chord.notes == notes
 
 
 @pytest.mark.parametrize("notes", CHORD_NAME_TO_NOTES.values())
 def test_chord_ukulele_tabs(notes: set[Note]) -> None:
-    assert Chord.from_notes(notes=notes).ukulele_tabs.notes == notes
+    (chord,) = Chord.iter_from_notes(notes=notes)
+    assert chord.ukulele_tabs.notes == notes
+
+
+@pytest.mark.parametrize(
+    ("notes", "expected"),
+    (
+        (
+            {Note.C, Note.DE, Note.FG, Note.A},
+            {"Cdim7", "DEdim7", "FGdim7", "Adim7"},
+        ),
+        (
+            {Note.C, Note.E, Note.GA},
+            {"Caug", "GAaug", "Eaug"},
+        ),
+        (
+            {Note.C, Note.F, Note.G},
+            {"Csus4", "Fsus2"},
+        ),
+        (
+            {Note.C, Note.D, Note.G},
+            {"Csus2", "Gsus4"},
+        ),
+    ),
+)
+def test_notes_to_multiple_chords(notes: set[Note], expected: set[str]) -> None:
+    chords = set(Chord.iter_from_notes(notes=notes))
+    assert set(chords) == set(map(Chord.from_name, expected))
+    assert all(chord.notes == notes for chord in chords)

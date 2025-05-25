@@ -52,7 +52,7 @@ def iter_rotation(it: collections.abc.Iterable) -> collections.abc.Iterator[tupl
         yield tuple(itertools.islice(itertools.cycle(ordered), idx, idx + n + 1))
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Intervals:
     values: tuple[int, ...]
     suffix: str
@@ -149,7 +149,7 @@ class Tab:
 UKULELE_STRINGS = (Note.G, Note.C, Note.E, Note.A)
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Chord:
     root: Note
     quality: Quality
@@ -183,13 +183,13 @@ class Chord:
             raise ValueError(f"Could not find the chord for {name=:s}")
 
     @classmethod
-    def from_notes(cls, notes: collections.abc.Iterable[Note]) -> Chord:
+    def iter_from_notes(
+        cls, notes: collections.abc.Iterable[Note]
+    ) -> collections.abc.Iterator[Chord]:
         notes = tuple(notes)
         for quality in Quality:
             for root in quality.iter_root(notes=notes):
-                return cls(root=root, quality=quality)
-        else:
-            raise ValueError(f"Could not find the chord for {notes=:}")
+                yield cls(root=root, quality=quality)
 
     @property
     def ukulele_tabs(self):
@@ -209,10 +209,10 @@ def main() -> int:
         tabs = chord.ukulele_tabs
     elif args.frets is not None:
         tabs = Tab(frets=args.frets, strings=UKULELE_STRINGS)
-        chord = Chord.from_notes(notes=tabs.notes)
+        chord = next(Chord.iter_from_notes(notes=tabs.notes))
     elif args.notes is not None:
         notes = map(Note.__getitem__, args.notes)
-        chord = Chord.from_notes(notes=notes)
+        chord = next(Chord.iter_from_notes(notes=notes))
         tabs = chord.ukulele_tabs
     else:
         raise ValueError("Either --chord or --frets or --notes must be provided")
